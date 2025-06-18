@@ -1,5 +1,5 @@
 > \[!CAUTION\]
-> This is a fork of pygeoapi for contributions by ECMWF. Please go to the original repo linked below for further information about pygeoapi.
+> This is a fork of pygeoapi for preparing contributions by ECMWF before pushing them upstream. Please go to the original repo linked below for further information about pygeoapi.
 
 # pygeoapi
 
