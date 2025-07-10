@@ -1,0 +1,22 @@
+apiVersion: skaffold/v4beta10
+kind: Config
+metadata:
+  name: pygeoapi-fork
+build:
+  local:
+    useBuildkit: true
+    concurrency: 1
+
+  tagPolicy:
+    customTemplate:
+      template: "{{.PKG_VERSION}}"
+      components:
+        - name: PKG_VERSION
+          envTemplate:
+            template: "{{.PKG_VERSION}}"
+
+  artifacts:
+    - image: eccr.ecmwf.int/polytope-edr/pygeoapi-fork
+      context: .
+      docker:
+        dockerfile: Dockerfile
