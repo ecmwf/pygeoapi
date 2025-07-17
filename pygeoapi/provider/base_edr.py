@@ -33,9 +33,17 @@ from pygeoapi.provider.base import BaseProvider, ProviderInvalidDataError
 
 LOGGER = logging.getLogger(__name__)
 
-EDR_QUERY_TYPES = ['position', 'radius', 'area', 'cube',
-                   'trajectory', 'corridor', 'items',
-                   'locations', 'instances']
+EDR_QUERY_TYPES = [
+    "position",
+    "radius",
+    "area",
+    "cube",
+    "trajectory",
+    "corridor",
+    "items",
+    "locations",
+    "instances",
+]
 
 
 class BaseEDRProvider(BaseProvider):
@@ -54,18 +62,19 @@ class BaseEDRProvider(BaseProvider):
 
         BaseProvider.__init__(self, provider_def)
 
-#        self.instances = []
+    #        self.instances = []
 
     @classmethod
     def register(cls):
         def inner(fn):
             if fn.__name__ not in EDR_QUERY_TYPES:
-                msg = 'Invalid EDR Query type'
+                msg = "Invalid EDR Query type"
                 LOGGER.error(msg)
                 raise ProviderInvalidDataError(msg)
 
             cls.query_types.append(fn.__name__)
             return fn
+
         return inner
 
     def get_instance(self, instance):
@@ -107,6 +116,6 @@ class BaseEDRProvider(BaseProvider):
         """
 
         try:
-            return getattr(self, kwargs.get('query_type'))(**kwargs)
+            return getattr(self, kwargs.get("query_type"))(**kwargs)
         except AttributeError:
-            raise NotImplementedError('Query not implemented!')
+            raise NotImplementedError("Query not implemented!")
