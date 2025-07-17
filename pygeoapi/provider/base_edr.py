@@ -39,6 +39,7 @@ EDR_QUERY_TYPES = [
     "area",
     "cube",
     "trajectory",
+    "corridor",
     "items",
     "locations",
     "instances",
