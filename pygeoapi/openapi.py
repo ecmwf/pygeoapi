@@ -588,9 +588,6 @@ def get_oas_30(cfg: dict, fail_on_invalid_collection: bool = True) -> dict:
             else:
                 LOGGER.warning(f"Resource not added to OpenAPI: {err}")
 
-    if "corridor" in oas["paths"]["collections"]["extremes-dt"]:
-        del oas["paths"]["collections"]["extremes-dt"]["corridor"]
-
     if cfg["server"].get("admin", False):
         schema_dict = get_config_schema()
         oas["definitions"] = schema_dict["definitions"]
