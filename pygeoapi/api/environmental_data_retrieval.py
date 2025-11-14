@@ -454,7 +454,7 @@ def get_collection_edr_query(
     )
 
     try:
-        data = p.query(**query_args)
+        data = p.query(headers=request.headers, **query_args)
     except ProviderGenericError as err:
         return api.get_exception(
             err.http_status_code,
