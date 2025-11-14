@@ -305,6 +305,7 @@ def get_collection_edr_query(
         )
         print("Plugin loaded")
         print("Set headers")
+        print(headers)
         p.headers = headers
     except ProviderGenericError as err:
         return api.get_exception(
