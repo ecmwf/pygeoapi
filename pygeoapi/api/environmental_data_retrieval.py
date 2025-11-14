@@ -303,12 +303,6 @@ def get_collection_edr_query(
         p = load_plugin(
             "provider", get_provider_by_type(collections[dataset]["providers"], "edr")
         )
-        print("Plugin loaded")
-        print("Set headers")
-        print(headers)
-        print(request)
-        print(request.headers)
-        p.headers = request.headers
     except ProviderGenericError as err:
         return api.get_exception(
             err.http_status_code,
