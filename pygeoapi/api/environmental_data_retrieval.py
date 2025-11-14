@@ -306,7 +306,9 @@ def get_collection_edr_query(
         print("Plugin loaded")
         print("Set headers")
         print(headers)
-        p.headers = headers
+        print(request)
+        print(request.headers)
+        p.headers = request.headers
     except ProviderGenericError as err:
         return api.get_exception(
             err.http_status_code,
@@ -458,7 +460,7 @@ def get_collection_edr_query(
     )
 
     try:
-        data = p.query(headers=headers, **query_args)
+        data = p.query(headers=request.headers, **query_args)
     except ProviderGenericError as err:
         return api.get_exception(
             err.http_status_code,
