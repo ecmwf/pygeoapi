@@ -400,6 +400,11 @@ def get_collection_edr_query(
         within = request.params.get("within")
         within_units = request.params.get("within-units")
 
+    if query_type == "corridor":
+        LOGGER.debug("Processing corridor specific parameters")
+        corridor_width = request.params.get("corridor-width")
+        corridor_height = request.params.get("corridor-height")
+
     LOGGER.debug("Processing z parameter")
     z = request.params.get("z")
 
@@ -449,6 +454,8 @@ def get_collection_edr_query(
         bbox=bbox,
         within=within,
         within_units=within_units,
+        corridor_width=corridor_width,
+        corridor_height=corridor_height,
         limit=limit,
         location_id=location_id,
     )
