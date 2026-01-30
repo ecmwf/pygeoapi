@@ -277,9 +277,6 @@ def get_collection_edr_instances(
             api.tpl_config, tpl_config, template, data, api.default_locale
         )
     else:
-        print("Data for instance json:", data)
-        print("instance: ", instance_id)
-        print(instance_id)
         if "instances" not in data:
             data["id"] = instance_id
             temporal_extent_end = add_hours_iso(instance_id, 360)
