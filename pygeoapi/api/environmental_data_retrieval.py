@@ -76,6 +76,18 @@ CONFORMANCE_CLASSES = [
     "http://www.opengis.net/spec/ogcapi-edr-1/1.2/req/oas31",
 ]
 
+from datetime import datetime, timedelta, timezone
+
+
+def add_hours_iso(iso_datetime: str, hours: int) -> str:
+    """
+    Add hours to an ISO 8601 / RFC 3339 datetime string
+    and return the same format with Z.
+    """
+    dt = datetime.fromisoformat(iso_datetime.replace("Z", "+00:00"))
+    dt = dt.astimezone(timezone.utc) + timedelta(hours=hours)
+    return dt.isoformat(timespec="seconds").replace("+00:00", "Z")
+
 
 def get_collection_edr_instances(
     api: API, request: APIRequest, dataset, instance_id=None
@@ -265,6 +277,16 @@ def get_collection_edr_instances(
             api.tpl_config, tpl_config, template, data, api.default_locale
         )
     else:
+        if "instances" not in data:
+            data["id"] = instance_id
+            temporal_extent_end = add_hours_iso(instance_id, 360)
+            data["extents"] = {
+                "spatial": {"bbox": [[-180, -90, 180, 90]], "crs": "EPSG:4326"},
+                "temporal": {
+                    "interval": [[instance_id, temporal_extent_end]],
+                    "trs": "http://www.opengis.net/def/uom/ISO-8601/0/Gregorian",
+                },
+            }
         content = to_json(data, api.pretty_print)
 
     return headers, HTTPStatus.OK, content
