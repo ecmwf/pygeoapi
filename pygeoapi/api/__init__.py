@@ -1726,7 +1726,39 @@ def validate_datetime(resource_def, datetime_=None) -> str:
             LOGGER.error(msg)
             raise ValueError(msg)
 
-        if "/" in datetime_:  # envelope
+        if "," in datetime_:  # comma-separated list of datetimes
+            LOGGER.debug("detected comma-separated datetime list")
+            LOGGER.debug("Validating each datetime in list")
+
+            datetime_list = [dt.strip() for dt in datetime_.split(",")]
+
+            for dt in datetime_list:
+                if dt != "..":
+                    datetime__ = dateparse_(dt)
+                    if datetime__.tzinfo is None:
+                        datetime__ = datetime__.replace(tzinfo=pytz.UTC)
+                else:
+                    datetime__ = ".."
+
+                datetime_invalid = any(
+                    [
+                        (
+                            te["begin"] is not None
+                            and datetime__ != ".."
+                            and datetime__ < te["begin"]
+                        ),
+                        (
+                            te["end"] is not None
+                            and datetime__ != ".."
+                            and datetime__ > te["end"]
+                        ),
+                    ]
+                )
+
+                if datetime_invalid:
+                    break
+
+        elif "/" in datetime_:  # envelope
             LOGGER.debug("detected time range")
             LOGGER.debug("Validating time windows")
 
