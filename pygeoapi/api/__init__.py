@@ -1391,6 +1391,20 @@ def describe_collections(
             # TODO: translate
             LOGGER.debug("Adding EDR links")
             collection["data_queries"] = {}
+
+            # Override temporal extent if provider supports it
+            if hasattr(p, 'get_temporal_extent'):
+                try:
+                    temporal_extent = p.get_temporal_extent()
+                    if temporal_extent:
+                        begins, ends = temporal_extent
+                        collection["extent"]["temporal"] = {
+                            "interval": [[begins, ends]],
+                            "trs": "http://www.opengis.net/def/uom/ISO-8601/0/Gregorian",  # noqa
+                        }
+                except Exception as err:
+                    LOGGER.warning(f'Could not get dynamic temporal extent: {err}')  # noqa
+
             parameters = p.get_fields()
             if parameters:
                 collection["parameter_names"] = {}
