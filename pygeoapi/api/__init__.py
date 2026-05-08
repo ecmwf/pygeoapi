@@ -1057,6 +1057,21 @@ def describe_collections(
             if "trs" in t_ext:
                 collection["extent"]["temporal"]["trs"] = t_ext["trs"]
 
+        # Override temporal extent from map provider if it supports it
+        try:
+            map_def = get_provider_by_type(v["providers"], "map")
+            mp = load_plugin("provider", map_def)
+            if hasattr(mp, 'get_temporal_extent'):
+                temporal_extent = mp.get_temporal_extent()
+                if temporal_extent:
+                    begins, ends = temporal_extent
+                    collection["extent"]["temporal"] = {
+                        "interval": [[begins, ends]],
+                        "trs": "http://www.opengis.net/def/uom/ISO-8601/0/Gregorian",  # noqa
+                    }
+        except Exception:
+            pass  # No map provider or does not support get_temporal_extent
+
         LOGGER.debug("Processing configured collection links")
         for link in l10n.translate(v.get("links", []), request.locale):
             lnk = {
