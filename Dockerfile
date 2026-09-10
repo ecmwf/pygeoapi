@@ -137,9 +137,15 @@ RUN \
     && rm -rf /var/lib/apt/lists/*
 
 ADD requirements-docker.txt requirements-admin.txt /pygeoapi/
-# Install remaining pygeoapi deps
-RUN python3 -m pip install --no-cache-dir -r requirements-docker.txt \
-    && python3 -m pip install --no-cache-dir -r requirements-admin.txt
+# Install remaining pygeoapi deps.
+# --ignore-installed: on Ubuntu 24.04 several deps (e.g. urllib3) are
+# provided as Debian system packages that ship no RECORD file, so pip
+# cannot uninstall them to satisfy an upgrade ("Cannot uninstall X,
+# RECORD file not found"). Installing fresh copies into /usr/local
+# (which shadows the distro's /usr/lib dist-packages) sidesteps the
+# un-removable system packages instead of failing on them.
+RUN python3 -m pip install --no-cache-dir --ignore-installed -r requirements-docker.txt \
+    && python3 -m pip install --no-cache-dir --ignore-installed -r requirements-admin.txt
 
 
 ADD . /pygeoapi
