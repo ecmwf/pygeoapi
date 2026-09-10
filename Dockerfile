@@ -34,7 +34,11 @@
 #
 # =================================================================
 
-FROM ubuntu:jammy-20240911.1
+# Ubuntu 24.04 (noble) ships Python 3.12 as its system python3. This was
+# bumped from jammy (22.04 / Python 3.10) so downstream images can install
+# the ARCO/Icechunk stack (icechunk requires Python >=3.12). All python3-*
+# apt packages below resolve against the distro's Python 3.12.
+FROM ubuntu:noble-20240904.1
 
 LABEL maintainer="Just van den Broecke <justb4@gmail.com>"
 
