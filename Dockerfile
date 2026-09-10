@@ -87,9 +87,15 @@ ARG ADD_DEB_PACKAGES="\
     python3-pyld"
 
 # ENV settings
+# NOTE: Ubuntu 24.04 (noble) marks the system Python as externally-managed
+# (PEP 668), so pip refuses to install into it without PIP_BREAK_SYSTEM_PACKAGES.
+# This image intentionally installs pygeoapi + providers into the system
+# Python, so we opt out globally. It is inherited by downstream images
+# (e.g. the polytope_plugin build) so their pip installs work too.
 ENV TZ=${TZ} \
     LANG=${LANG} \
     DEBIAN_FRONTEND="noninteractive" \
+    PIP_BREAK_SYSTEM_PACKAGES=1 \
     DEB_BUILD_DEPS="\
     software-properties-common \
     curl \
