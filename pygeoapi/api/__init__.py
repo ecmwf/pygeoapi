@@ -121,6 +121,58 @@ FORMAT_ALIASES = {
     "covjson": F_COVERAGEJSON,
 }
 
+#: CRS advertised for EDR query variables (crs_details)
+EDR_CRS_DETAILS = [
+    {
+        "crs": "CRS84",
+        "wkt": 'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,'
+        '298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",'
+        '0.0174532925199433],AXIS["Lon",EAST],AXIS["Lat",NORTH]]',
+    }
+]
+
+
+def get_edr_query_variables(query_type: str) -> dict:
+    """
+    Build the ``variables`` member of an EDR data query link.
+
+    EDR clients use ``output_formats`` to decide whether they can use a
+    query (GeoWeb's time-series drops instances without it and fails on a
+    link that has no ``variables``).
+
+    :param query_type: EDR query type
+    :returns: `dict` of query variables
+    """
+
+    variables = {"query_type": query_type}
+    if query_type != "instances":
+        variables["output_formats"] = [F_COVERAGEJSON]
+        variables["default_output_format"] = F_COVERAGEJSON
+        variables["crs_details"] = EDR_CRS_DETAILS
+    return variables
+
+
+def merge_extent(extent: dict, extra: Union[dict, None]) -> dict:
+    """
+    Merge provider-supplied extent members into an extent object.
+
+    ``spatial``/``temporal``/``vertical`` dicts are updated key by key, so a
+    provider can add e.g. ``temporal.values`` without restating the
+    interval; any other member (e.g. ``custom``) is set as given.
+
+    :param extent: `dict` of extent, updated in place
+    :param extra: `dict` of extent members from the provider (or None)
+    :returns: `dict` of the updated extent
+    """
+
+    for key, value in (extra or {}).items():
+        if isinstance(value, dict) and isinstance(extent.get(key), dict):
+            extent[key].update(value)
+        else:
+            extent[key] = value
+    return extent
+
+
 #: Locale used for system responses (e.g. exceptions)
 SYSTEM_LOCALE = l10n.Locale("en", "US")
 
@@ -1434,21 +1486,37 @@ def describe_collections(
                 except Exception as err:
                     LOGGER.warning(f'Could not get dynamic temporal extent: {err}')  # noqa
 
+            # Optional extra extent members from the provider, e.g.
+            # temporal.values (EDR clients such as GeoWeb soundings build
+            # their time steps from it), vertical, or custom dimensions
+            if hasattr(p, 'get_collection_extent'):
+                try:
+                    merge_extent(collection["extent"], p.get_collection_extent())
+                except Exception as err:
+                    LOGGER.warning(f'Could not get collection extent: {err}')
+
             parameters = p.get_fields()
             if parameters:
                 collection["parameter_names"] = {}
                 for key, value in parameters.items():
+                    unit = value.get("x-ogc-unit", "")
                     collection["parameter_names"][key] = {
                         "id": key,
                         "type": "Parameter",
                         "name": value["title"],
+                        # label/description: what EDR clients (e.g. GeoWeb)
+                        # show in their parameter lists
+                        "label": value["title"],
+                        "description": value.get("description") or value["title"],
                         "observedProperty": {
                             "label": {"id": key, "en": value["title"]},
                         },
                         "unit": {
-                            "label": {"en": value["title"]},
+                            # the unit's name, as a plain string; this used
+                            # to repeat the parameter title
+                            "label": unit,
                             "symbol": {
-                                "value": value["x-ogc-unit"],
+                                "value": unit,
                                 "type": "http://www.opengis.net/def/uom/UCUM/",  # noqa
                             },
                         },
@@ -1459,7 +1527,7 @@ def describe_collections(
                     "link": {
                         "href": f"{api.get_collections_url()}/{k}/{qt}",
                         "rel": "data",
-                        "variables": {"query_type": qt},
+                        "variables": get_edr_query_variables(qt),
                     }
                 }
                 collection["data_queries"][qt] = data_query

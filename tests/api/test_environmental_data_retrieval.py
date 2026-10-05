@@ -36,7 +36,8 @@ import json
 from http import HTTPStatus
 
 from pygeoapi.api import describe_collections
-from pygeoapi.api.environmental_data_retrieval import get_collection_edr_query
+from pygeoapi.api.environmental_data_retrieval import (
+    get_collection_edr_instances, get_collection_edr_query)
 
 from tests.util import mock_api_request
 
@@ -285,3 +286,37 @@ def test_get_collection_edr_query_coveragejson_format(config, api_):
     rsp_headers, code, response = get_collection_edr_query(
         api_, req, 'icoads-sst', None, 'position')
     assert code == HTTPStatus.BAD_REQUEST
+
+
+def test_describe_collection_edr_client_metadata(config, api_):
+    # metadata EDR clients (e.g. GeoWeb) rely on
+    req = mock_api_request()
+    rsp_headers, code, response = describe_collections(api_, req, 'icoads-sst')
+    assert code == HTTPStatus.OK
+    collection = json.loads(response)
+
+    # only the query types the provider implements (xarray-edr: position,
+    # cube), not every type registered by any provider
+    assert sorted(collection['data_queries']) == ['cube', 'position']
+
+    for qt, dq in collection['data_queries'].items():
+        variables = dq['link']['variables']
+        assert variables['query_type'] == qt
+        assert variables['output_formats'] == ['CoverageJSON']
+        assert variables['default_output_format'] == 'CoverageJSON'
+        assert variables['crs_details'][0]['crs'] == 'CRS84'
+
+    sst = collection['parameter_names']['SST']
+    assert sst['label'] == sst['name']
+    assert sst['description']
+    assert isinstance(sst['unit']['label'], str)
+    assert sst['unit']['label'] == sst['unit']['symbol']['value']
+
+
+def test_get_collection_edr_instances_without_instances(config, api_):
+    # a provider without instances() returns a JSON 404, not a server error
+    req = mock_api_request()
+    rsp_headers, code, response = get_collection_edr_instances(
+        api_, req, 'icoads-sst')
+    assert code == HTTPStatus.NOT_FOUND
+    assert json.loads(response)['code'] == 'NotFound'

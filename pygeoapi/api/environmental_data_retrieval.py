@@ -65,6 +65,8 @@ from . import (
     F_HTML,
     F_JSON,
     F_JSONLD,
+    get_edr_query_variables,
+    merge_extent,
     validate_datetime,
     validate_bbox,
 )
@@ -87,6 +89,37 @@ def add_hours_iso(iso_datetime: str, hours: int) -> str:
     dt = datetime.fromisoformat(iso_datetime.replace("Z", "+00:00"))
     dt = dt.astimezone(timezone.utc) + timedelta(hours=hours)
     return dt.isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def get_instance_extent(provider, instance_id: str) -> dict:
+    """
+    Extent of one EDR instance.
+
+    Defaults to a global spatial extent and, when the instance id is an ISO
+    datetime (a model run), a 360-hour forecast interval from it. Providers
+    can add to or override this with ``get_instance_extent(instance_id)``,
+    e.g. ``temporal.values`` (GeoWeb soundings builds time steps from it) or
+    ``vertical`` (its level range).
+
+    :param provider: EDR provider instance
+    :param instance_id: instance identifier
+    :returns: `dict` of extent
+    """
+
+    extent = {"spatial": {"bbox": [[-180, -90, 180, 90]], "crs": "EPSG:4326"}}
+    try:
+        extent["temporal"] = {
+            "interval": [[instance_id, add_hours_iso(instance_id, 360)]],
+            "trs": "http://www.opengis.net/def/uom/ISO-8601/0/Gregorian",
+        }
+    except (TypeError, ValueError):
+        pass  # instance id is not a datetime: no default temporal extent
+    if hasattr(provider, "get_instance_extent"):
+        try:
+            merge_extent(extent, provider.get_instance_extent(instance_id))
+        except Exception as err:
+            LOGGER.warning(f"Could not get extent of instance {instance_id}: {err}")
+    return extent
 
 
 def get_collection_edr_instances(
@@ -132,14 +165,27 @@ def get_collection_edr_instances(
             err.message,
         )
 
+    if not callable(getattr(type(p), "instances", None)):
+        msg = "This collection has no instances"
+        return api.get_exception(
+            HTTPStatus.NOT_FOUND, headers, request.format, "NotFound", msg
+        )
+
     if instance_id is not None:
         try:
-            instances = [p.get_instance(instance_id)]
+            found = p.get_instance(instance_id)
         except ProviderItemNotFoundError:
+            found = False
+        if found is None or isinstance(found, Exception):
+            # get_instance not implemented (the base class returns, not
+            # raises, NotImplementedError): check the instance list instead
+            found = instance_id in p.instances()
+        if not found:
             msg = "Instance not found"
             return api.get_exception(
                 HTTPStatus.NOT_FOUND, headers, request.format, "NotFound", msg
             )
+        instances = [instance_id]
     else:
         instances = p.instances()
 
@@ -170,6 +216,7 @@ def get_collection_edr_instances(
                     "type": "application/json",
                 },
             ],
+            "extent": get_instance_extent(p, instance),
             "data_queries": {},
         }
 
@@ -181,6 +228,7 @@ def get_collection_edr_instances(
                     "href": f"{uri}/instances/{instance}/{qt}",
                     "rel": "data",
                     "title": f"{qt} query",
+                    "variables": get_edr_query_variables(qt),
                 }
             }
             instance_dict["data_queries"][qt] = data_query
@@ -279,14 +327,9 @@ def get_collection_edr_instances(
     else:
         if "instances" not in data:
             data["id"] = instance_id
-            temporal_extent_end = add_hours_iso(instance_id, 360)
-            data["extents"] = {
-                "spatial": {"bbox": [[-180, -90, 180, 90]], "crs": "EPSG:4326"},
-                "temporal": {
-                    "interval": [[instance_id, temporal_extent_end]],
-                    "trs": "http://www.opengis.net/def/uom/ISO-8601/0/Gregorian",
-                },
-            }
+            # EDR (and GeoWeb) read "extent"; "extents" is kept for
+            # existing clients of this server
+            data["extents"] = data["extent"]
         content = to_json(data, api.pretty_print)
 
     return headers, HTTPStatus.OK, content
