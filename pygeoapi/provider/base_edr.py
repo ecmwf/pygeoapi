@@ -72,7 +72,11 @@ class BaseEDRProvider(BaseProvider):
                 LOGGER.error(msg)
                 raise ProviderInvalidDataError(msg)
 
+            # Kept for backwards compatibility. Note this list is shared by
+            # every provider (``cls`` is BaseEDRProvider at decoration time),
+            # so get_query_types() uses the per-method marker below instead.
             cls.query_types.append(fn.__name__)
+            fn._edr_query_type = fn.__name__
             return fn
 
         return inner
@@ -93,7 +97,30 @@ class BaseEDRProvider(BaseProvider):
         :returns: `list` of EDR query types
         """
 
-        return self.query_types
+        # Only the query types this provider's class actually implements:
+        # the shared ``query_types`` list would otherwise advertise every
+        # query registered by any loaded provider (e.g. radius on a provider
+        # that has no radius method).
+        own = [
+            qt
+            for qt in EDR_QUERY_TYPES
+            if getattr(getattr(type(self), qt, None), "_edr_query_type", None)
+            == qt
+        ]
+        if not own:
+            return self.query_types
+        # Advertise instances only if this provider (for this collection)
+        # actually has some: one provider class may serve collections with
+        # and without instances.
+        if "instances" not in own and callable(
+            getattr(type(self), "instances", None)
+        ):
+            try:
+                if self.instances():
+                    own.append("instances")
+            except Exception as err:
+                LOGGER.debug(f"Could not list instances: {err}")
+        return own
 
     def query(self, **kwargs):
         """
