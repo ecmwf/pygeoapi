@@ -252,3 +252,36 @@ def test_get_collection_edr_query(config, api_):
     rsp_headers, code, response = get_collection_edr_query(
         api_, req, 'usgs-prism', None, 'cube')
     assert code == HTTPStatus.OK
+
+
+def test_get_collection_edr_query_coveragejson_format(config, api_):
+    # OGC API - EDR clients (e.g. GeoWeb) request f=CoverageJSON
+    for f in ['CoverageJSON', 'coveragejson', 'covjson', 'COVJSON']:
+        req = mock_api_request({
+            'coords': 'POINT(11 11)', 'parameter-name': 'SST', 'f': f
+        })
+        rsp_headers, code, response = get_collection_edr_query(
+            api_, req, 'icoads-sst', None, 'position')
+        assert code == HTTPStatus.OK, f
+        assert rsp_headers['Content-Type'] == 'application/prs.coverage+json'
+        data = json.loads(response)
+        assert data['type'] == 'Coverage'
+        assert list(data['parameters'].keys()) == ['SST']
+
+    # f=json is unchanged
+    req = mock_api_request({
+        'coords': 'POINT(11 11)', 'parameter-name': 'SST', 'f': 'json'
+    })
+    rsp_headers, code, response = get_collection_edr_query(
+        api_, req, 'icoads-sst', None, 'position')
+    assert code == HTTPStatus.OK
+    assert rsp_headers['Content-Type'] == 'application/json'
+    assert json.loads(response)['type'] == 'Coverage'
+
+    # unknown formats are still rejected
+    req = mock_api_request({
+        'coords': 'POINT(11 11)', 'parameter-name': 'SST', 'f': 'bogus'
+    })
+    rsp_headers, code, response = get_collection_edr_query(
+        api_, req, 'icoads-sst', None, 'position')
+    assert code == HTTPStatus.BAD_REQUEST

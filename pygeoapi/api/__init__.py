@@ -93,7 +93,7 @@ HEADERS = {
 
 CHARSET = ["utf-8"]
 F_JSON = "json"
-F_COVERAGEJSON = "json"
+F_COVERAGEJSON = "CoverageJSON"
 F_HTML = "html"
 F_JSONLD = "jsonld"
 F_GZIP = "gzip"
@@ -108,12 +108,18 @@ FORMAT_TYPES = OrderedDict(
         (F_HTML, "text/html"),
         (F_JSONLD, "application/ld+json"),
         (F_JSON, "application/json"),
+        (F_COVERAGEJSON, "application/prs.coverage+json"),
         (F_PNG, "image/png"),
         (F_JPEG, "image/jpeg"),
         (F_MVT, "application/vnd.mapbox-vector-tile"),
         (F_NETCDF, "application/x-netcdf"),
     )
 )
+
+#: Extra ?f= spellings mapped to a FORMAT_TYPES key (matched case-insensitively)
+FORMAT_ALIASES = {
+    "covjson": F_COVERAGEJSON,
+}
 
 #: Locale used for system responses (e.g. exceptions)
 SYSTEM_LOCALE = l10n.Locale("en", "US")
@@ -361,7 +367,15 @@ class APIRequest:
         # Overrides Accept header and might differ from FORMAT_TYPES
         format_ = (self._args.get("f") or "").strip()
         if format_:
-            return format_
+            # Normalise case and aliases to the FORMAT_TYPES key, so e.g.
+            # f=CoverageJSON, f=coveragejson and f=covjson all match (OGC API
+            # EDR clients such as GeoWeb send f=CoverageJSON). Unknown values
+            # are returned unchanged for is_valid() to check.
+            lowered = format_.lower()
+            for key in FORMAT_TYPES:
+                if key.lower() == lowered:
+                    return key
+            return FORMAT_ALIASES.get(lowered, format_)
 
         # Format not specified: get from Accept headers (MIME types)
         # e.g. format_ = 'text/html'
